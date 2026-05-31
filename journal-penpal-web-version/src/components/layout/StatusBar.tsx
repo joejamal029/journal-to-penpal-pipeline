@@ -1,4 +1,4 @@
-import { Check, Loader2, Sparkles } from "lucide-react";
+import { Check, Loader2, Sparkles, Trash2 } from "lucide-react";
 import { useAppStore } from "@/stores/appStore";
 
 export function StatusBar() {
@@ -77,13 +77,13 @@ export function StatusBar() {
               const { db } = await import("@/services/db");
               const { emitDbChange } = await import("@/hooks/useLiveQuery");
               
+              const tables = db().tables;
+              const tableNames = tables.map((t) => t.name);
+              
               // Wipe all IndexedDB tables
-              await db().transaction("rw", Object.values(db()), async () => {
-                const tables = Object.values(db());
+              await db().transaction("rw", tableNames, async () => {
                 for (const t of tables) {
-                  if (typeof t.clear === "function") {
-                    await t.clear();
-                  }
+                  await t.clear();
                 }
               });
               
@@ -95,10 +95,11 @@ export function StatusBar() {
               alert("Failed to wipe database: " + (err as Error).message);
             }
           }}
-          className="text-error/80 hover:text-error hover:bg-error/10 px-1.5 py-0.5 rounded transition-all font-mono font-bold text-[10px] cursor-pointer"
+          className="text-text-secondary hover:text-error hover:bg-error/10 p-1 rounded cursor-pointer transition-all shrink-0"
           title="Permanently wipe all IndexedDB databases and clear application cache"
+          aria-label="Wipe all data"
         >
-          [ Wipe Data ]
+          <Trash2 className="h-3.5 w-3.5" />
         </button>
       </div>
     </div>

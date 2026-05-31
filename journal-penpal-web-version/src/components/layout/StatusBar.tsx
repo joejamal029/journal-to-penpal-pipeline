@@ -46,15 +46,60 @@ export function StatusBar() {
         <span>{openLetterIds.length} open</span>
         {saveLabel}
       </div>
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 select-none">
         <button
           onClick={() => openModal("scaffold")}
           disabled={sourceCount === 0 || penpalCount === 0}
-          className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-text-secondary hover:bg-surface-elevated hover:text-foreground disabled:opacity-40 disabled:hover:bg-transparent"
+          className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-text-secondary hover:bg-surface-elevated hover:text-foreground disabled:opacity-40 disabled:hover:bg-transparent cursor-pointer"
         >
           <Sparkles className="h-3 w-3" /> Generate scaffold
         </button>
         <span className="text-text-disabled">Ctrl+S to save · Local-only</span>
+        <span className="text-text-disabled">·</span>
+        <button
+          type="button"
+          onClick={async () => {
+            if (
+              !confirm(
+                "🚨 CRITICAL WARNING: This will permanently delete ALL imported journal sources, parsed thoughts, penpals, active letter drafts, and curated collections from your browser. This action CANNOT be undone.\n\nAre you absolutely sure you want to wipe all application data?",
+              )
+            ) {
+              return;
+            }
+            if (
+              !confirm(
+                "FINAL CONFIRMATION: Double check that you have backed up any draft letters. Click OK to wipe everything.",
+              )
+            ) {
+              return;
+            }
+            try {
+              const { db } = await import("@/services/db");
+              const { emitDbChange } = await import("@/hooks/useLiveQuery");
+              
+              // Wipe all IndexedDB tables
+              await db().transaction("rw", Object.values(db()), async () => {
+                const tables = Object.values(db());
+                for (const t of tables) {
+                  if (typeof t.clear === "function") {
+                    await t.clear();
+                  }
+                }
+              });
+              
+              // Clear Zustand persisted store and all localStorage
+              localStorage.clear();
+              emitDbChange();
+              window.location.reload();
+            } catch (err) {
+              alert("Failed to wipe database: " + (err as Error).message);
+            }
+          }}
+          className="text-error/80 hover:text-error hover:bg-error/10 px-1.5 py-0.5 rounded transition-all font-mono font-bold text-[10px] cursor-pointer"
+          title="Permanently wipe all IndexedDB databases and clear application cache"
+        >
+          [ Wipe Data ]
+        </button>
       </div>
     </div>
   );

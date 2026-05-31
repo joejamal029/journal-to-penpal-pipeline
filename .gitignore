@@ -4,6 +4,10 @@ node_modules/
 .git_backup/
 **/.git_backup/
 
+# Desktop Version Exclusions (Ignored completely)
+desktop ver/
+**/desktop ver/
+
 # Builds & Production Outputs
 dist/
 **/dist/

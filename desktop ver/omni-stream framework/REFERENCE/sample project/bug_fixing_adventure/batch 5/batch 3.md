@@ -1,0 +1,25 @@
+The TypeScript bounds for the analytics models are secure. The compiler is passing, and we are officially resuming **Priority 2: Pure Engines**. 
+
+We are slicing the remainder of this layer to focus exclusively on the **Analytics Domain**. The analytics engine is the mathematical feedback loop of the entire W-List philosophy. Right now, it is silently failing to calculate critical metrics, improperly formatting strings, and dropping execution flags. If this pure computation layer hallucinates or drops data, the dashboards will permanently render falsified statistics.
+
+I am enforcing strict verbatim fidelity. Here are the final 5 Pure Engine logic failures, exactly as documented in the master source.
+
+***
+
+### Batch 3: Priority 2: Pure Engines - Analytics Domain
+
+VIOLATION 4 — MISSING IMPLEMENTATION Spec Source: wlist_analytics.md, 1.1 Daily Metrics, "Deferred-complete rate | deferred_complete / total_deferred | %" File: src/engine/analytics.ts Spec Trace: The analytics engine must calculate the "Deferred-complete rate" as part of the daily metrics payload, measuring how successfully the user resolves on-the-line tasks. Code Trace: The computeDailyMetrics function aggregates points, completion rates, task counts, and pomodoro sessions, but simply finishes execution and returns the object without ever calculating the deferred-complete rate. Divergence: The required metric is entirely absent from both the computation logic and the returned data structure. Evidence:
+
+VIOLATION 5 — MISSING IMPLEMENTATION Spec Source: wlist_analytics.md, 1.2 Weekly Metrics, "Most missed task | task with highest miss_count this week | Task title" File: src/engine/analytics.ts Spec Trace: The weekly metrics generation process must identify and surface the specific task title that suffered the highest miss count during the week. Code Trace: The computeWeeklyMetrics function builds the return object but permanently assigns null to the most_missed_task field, leaving a comment relying on an unimplemented service layer fallback that never executes. Divergence: The engine fails to calculate or retrieve the most missed task, emitting an empty null value instead. Evidence:
+
+VIOLATION 5 — PARTIAL IMPLEMENTATION Spec Source: wlist_overview.md, Failure & Backlog Philosophy, "Backdated entries are flagged in analytics but treated as valid completions." File: src/engine/analytics.ts Spec Trace: When tasks are completed post-facto via the backdating interface, the system must treat them as normal points mathematically but apply a strict flag internally so the analytics view can isolate or contextualize these delayed actions. Code Trace: backdateTaskCompletion correctly stamps is_backdated = 1 into the SQLite database. But when getAssignmentsForAnalytics pulls this data for the computeDailyMetrics function, the AssignmentRow TypeScript boundary rigidly omits the is_backdated field entirely, pulling only is_override. Divergence: The implementation successfully processes backdated completions mathematically but fails to pass the backdated flag into the analytics ingestion pipeline, permanently blending them with real-time completions. Evidence:
+
+VIOLATION 2 — MISSING IMPLEMENTATION Spec Source: wlist_analytics.md, 1.4 All-Time Metrics, "Longest active period | Days without missing an audit" File: src/engine/analytics.ts Spec Trace: The analytics engine must compute an all-time metric identifying the user's longest continuous period of operation without failing an audit cycle. Code Trace: The engine exports specialized calculators like computeDailyMetrics, computeWeeklyMetrics, and computeCompletionStreak (which mathematically counts consecutive days where the completion rate is >= 50%). It completely omits any logic, loop traversal, or variable assignment to calculate consecutive days without a missed audit. Divergence: The mathematical engine entirely fails to implement the required tracking for the continuous active period metric. Evidence:
+
+VIOLATION 3 — WRONG IMPLEMENTATION Spec Source: wlist_analytics.md, 1.2 Weekly Metrics, "Best day | max(daily_rate) this week | Day name + %" File: src/engine/analytics.ts Spec Trace: When calculating the Weekly Metrics, the engine must identify the best-performing day and explicitly format the result's string to include the "Day name" (e.g., Monday, Tuesday). Code Trace: The computeWeeklyMetrics iterates through dailyMetricsArray to find the day with the highest completion_rate. When it builds the assignment object, it assigns d.list_date directly to the day field. d.list_date is a raw ISO string (e.g., '2026-03-31'). Divergence: The engine stores and returns the raw ISO date string instead of converting it into the explicitly mandated Day name format. Evidence:
+
+***
+
+Dispatch these to the implementation bot immediately. With this batch merged, the Pure Engine layer will be mathematically flawless. We will then breach the integration controllers in Priority 3.
+
+Are you ready for the 'Next Batch'?

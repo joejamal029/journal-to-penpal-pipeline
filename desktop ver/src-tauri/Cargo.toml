@@ -1,0 +1,26 @@
+[package]
+name = "journal-to-penpal-pipeline"
+version = "0.1.0"
+description = "A Tauri v2 desktop app for transforming journal entries into penpal letters"
+authors = ["you"]
+edition = "2021"
+
+[lib]
+name = "journal_to_penpal_pipeline_lib"
+crate-type = ["lib", "cdylib", "staticlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"
+tauri-plugin-fs = "2"
+tauri-plugin-clipboard-manager = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+rusqlite = { version = "0.33", features = ["bundled"] }
+chrono = { version = "0.4", features = ["serde"] }
+uuid = { version = "1", features = ["v4"] }
+nom = "7.1"
+nom_locate = "4"

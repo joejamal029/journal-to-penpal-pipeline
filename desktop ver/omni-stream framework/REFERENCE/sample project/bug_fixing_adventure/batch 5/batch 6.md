@@ -1,0 +1,25 @@
+The task extension mechanics and state regressions are now in the hands of the implementation bot. We are executing the final sub-batch for **Priority 3: Services & Integrations**, strictly isolating the **Analytics Queries and Goal Restrictions** domain. 
+
+If the data layer hallucinates its mathematical ratios or fails to constrain the macro goals, the UI dashboards will permanently render falsified statistics. I am enforcing strict verbatim fidelity, exactly as documented in the master backlog, to protect the context window.
+
+Here is the final Priority 3 batch for immediate execution:
+
+***
+
+### Batch 6: Priority 3: Services & Integrations - Analytics Queries & Goal Restrictions (Part 3)
+
+VIOLATION 2 — MISSING IMPLEMENTATION Spec Source: wlist_analytics.md, 1.3 Monthly Metrics, "Backlog growth | net new tasks vs tasks completed | Delta" File: src/services/analyticsService.ts Spec Trace: The analytics engine must compute the monthly "Backlog growth" metric, analyzing the delta between net new tasks and tasks completed to feed the dashboard UI. Code Trace: The analyticsService.ts module exports query endpoints for nearly all required daily and monthly metrics (getDailyBreakdown, getTaskFrequencyRanking, getCeilingUtilization, etc.). Divergence: The system completely omits the required backlog growth metric computation from the analytics query layer. Evidence:
+
+VIOLATION 4 — WRONG IMPLEMENTATION Spec Source: wlist_analytics.md, 1.3 Monthly Metrics, "Top 5 completed | by completion_count this month | Ranked list" File: src/services/analyticsService.ts Spec Trace: The analytics engine must generate a ranking of the top 5 most completed tasks, strictly filtered to completions that occurred within the current month. Code Trace: The service layer exposes getTaskFrequencyRanking(), which executes a COUNT(mfl.id) over monthly_frequency_log. However, the query completely lacks a WHERE clause bounding the timestamp, aggregating completions across the entire lifetime of the database. Divergence: The system fails to compute the mandated monthly scope for the completed task rankings, returning lifetime chronological totals instead. Evidence:
+
+VIOLATION 5 — MISSING IMPLEMENTATION Spec Source: wlist_analytics.md, 1.3 Monthly Metrics, "Task coverage | unique tasks attempted / total in 3-month list | %" File: src/services/analyticsService.ts Spec Trace: The monthly analytics layer must compute the "Task coverage" metric, which calculates the percentage of unique tasks attempted over the month relative to the total available tasks sitting in the 3-month library. Code Trace: The analyticsService.ts module constructs complex SQL queries for nearly all other dashboard metrics (e.g., getDailyBreakdown, getPointVelocity, getMostMissedTasks, getTaskFrequencyRanking, getDelegationChains). It never defines, executes, or exports a query to calculate task coverage. Divergence: The backend engine completely omits calculating the mathematical ratio of unique attempted tasks against the 3-month master library definition set. Evidence:
+
+VIOLATION 5 — INVERTED RULE Spec Source: wlist_data_models.md, Core Tables, year_goals, "Qualitative year-level aspirations, one per section." File: src/services/goalService.ts Spec Trace: The data model explicitly restricts yearly goals to a 1:1 relationship with the 8 core sections. The user is allowed exactly one overarching qualitative aspiration per section. Code Trace: The createYearGoal service function executes a query to fetch the MAX(display_order) for the target section to calculate a nextOrder integer, explicitly designed to sequentially stack new goals on top of existing ones. It then unconditionally executes the SQL INSERT. Divergence: The service layer structurally defies the "one per section" limit by implementing sequencing logic intended to support an infinite array of goals per section. Evidence:
+
+VIOLATION 1 — MISSING IMPLEMENTATION Spec Source: wlist_analytics.md, 1.4 All-Time Metrics, "Section distribution (all time) | Where has time gone?" File: src/services/analyticsService.ts Spec Trace: The analytics layer is required to compute and surface an overarching, all-time historical breakdown showing exactly how the user's point accumulation is distributed across the 8 core sections over the lifetime of the database. Code Trace: The analyticsService.ts module exports numerous queries for metrics such as getDailyBreakdown, getPointVelocity, getDelegationChains, and getAnnualPointsTracker. However, it completely omits any SQL query, function, or export to aggregate lifetime section distribution. Divergence: The analytics engine entirely fails to implement the required all-time section distribution metric. Evidence:
+
+***
+
+Dispatch these structural failures to the implementation bot immediately. Once these final service controllers are secured, we will officially breach the React Native UI DOM trees in Priority 4.
+
+Are you ready for the 'Next Batch'?

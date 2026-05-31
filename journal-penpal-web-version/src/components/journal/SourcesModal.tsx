@@ -178,6 +178,61 @@ export function SourcesModal() {
               </ul>
             )}
           </div>
+
+          <div className="flex justify-between items-center pt-4 border-t border-border/40 mt-4 select-none">
+            <button
+              type="button"
+              disabled={busy}
+              onClick={async () => {
+                if (
+                  !confirm(
+                    "🚨 CRITICAL WARNING: This will permanently delete ALL imported journal sources, parsed thoughts, penpals, active letter drafts, and curated collections. This action CANNOT be undone.\n\nAre you absolutely sure you want to wipe all application data?",
+                  )
+                ) {
+                  return;
+                }
+                if (
+                  !confirm(
+                    "FINAL CONFIRMATION: Double check that you have backed up any draft letters. Click OK to wipe everything.",
+                  )
+                ) {
+                  return;
+                }
+                setBusy(true);
+                try {
+                  // Wipe all IndexedDB tables
+                  await db().transaction("rw", Object.values(db()), async () => {
+                    const tables = Object.values(db());
+                    for (const t of tables) {
+                      if (typeof t.clear === "function") {
+                        await t.clear();
+                      }
+                    }
+                  });
+                  // Clear Zustand persisted store and all localStorage
+                  localStorage.clear();
+                  emitDbChange();
+                  toast.success("Successfully wiped all application databases and local states.");
+                  setTimeout(() => {
+                    window.location.reload();
+                  }, 1200);
+                } catch (err) {
+                  toast.error("Failed to wipe database: " + (err as Error).message);
+                } finally {
+                  setBusy(false);
+                }
+              }}
+              className="text-xs font-semibold text-error hover:bg-error/10 border border-error/30 hover:border-error px-2.5 py-1 rounded cursor-pointer transition-all disabled:opacity-50"
+            >
+              Reset Database & Wipe All Data
+            </button>
+            <button
+              onClick={closeModal}
+              className="text-xs font-medium text-text-secondary hover:text-foreground cursor-pointer"
+            >
+              Close
+            </button>
+          </div>
         </div>
       </div>
     </div>

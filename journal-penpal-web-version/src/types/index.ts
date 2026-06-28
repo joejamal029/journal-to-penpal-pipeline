@@ -24,6 +24,7 @@ export interface ThoughtUnit {
   tags?: string[];
   source_file_path: string;
   source_line_number: number;
+  source_end_line_number?: number;
   format_version: FormatVersion;
   created_at: string;
   anchor_hash?: string;

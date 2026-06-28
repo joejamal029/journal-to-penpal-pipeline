@@ -47,4 +47,49 @@ Second thought under new day.
     expect(result.units[1].date).toBe("2026-06-01");
     expect(result.units[1].content).toBe("Second thought under new day.");
   });
+
+  it("DIAGNOSTIC TEST: parse screenshot text", () => {
+    const text = `### Thought
+Don't put your happiness in the
+hands of very unpredictable
+external factors (e.g game, people)
+it makes the pain worse.
+
+### Idea
+I should specifically set out time for
+a recharge and utility time. For
+clarity, mentally and to clean my
+environment (clarity). To prevent
+
+### Idea
+What if there's an app that allows
+you to exchange diaries with the
+other person perfectly random and
+anon.
+expansion: Like you're gonna
+experience someone else's life like
+a story.`;
+    const result = parseJournal(text, "January 7, Sun.md");
+    console.log("DIAGNOSTIC RESULT UNITS:", JSON.stringify(result.units, null, 2));
+    expect(result.units.length).toBe(3);
+
+    // Check first unit line range
+    expect(result.units[0].source_line_number).toBe(2);
+    expect(result.units[0].source_end_line_number).toBe(5);
+
+    // Check third unit line range
+    expect(result.units[2].source_line_number).toBe(14);
+    expect(result.units[2].source_end_line_number).toBe(20);
+  });
+
+  it("should dynamically parse custom section headers as dynamic categories", () => {
+    const text = `
+### Expansion
+This is a custom category thought unit.
+`;
+    const result = parseJournal(text, "test.md");
+    expect(result.units.length).toBe(1);
+    expect(result.units[0].category).toBe("expansion");
+    expect(result.units[0].section).toBe("Expansion");
+  });
 });

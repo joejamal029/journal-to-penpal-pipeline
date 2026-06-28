@@ -1,7 +1,9 @@
 import { useState } from "react";
-import { Search, Shuffle, X, SlidersHorizontal } from "lucide-react";
+import { Search, X, SlidersHorizontal } from "lucide-react";
 import type { Category } from "@/types";
 import { DEFAULT_CRAWLER_FILTERS, type CrawlerFilters } from "@/stores/appStore";
+import { db } from "@/services/db";
+import { useDbQuery } from "@/hooks/useLiveQuery";
 
 export type CrawlerFilterState = CrawlerFilters;
 export const defaultFilters = DEFAULT_CRAWLER_FILTERS;
@@ -33,6 +35,33 @@ export function FilterBar({
   resultCount: number;
 }) {
   const [showFilters, setShowFilters] = useState(false);
+
+  const allCategories =
+    useDbQuery(async () => {
+      const units = await db().thought_units.toArray();
+      const cats = new Set<string>();
+      for (const u of units) {
+        if (u.category) {
+          cats.add(u.category.toLowerCase());
+        }
+      }
+      return Array.from(cats);
+    }, []) || [];
+
+  const coreKeys = ["note", "presence", "reminiscence", "thought", "idea", "uncategorized"];
+  const dynamicCategoryMeta = [...CATEGORY_META];
+
+  for (const cat of allCategories) {
+    if (!coreKeys.includes(cat)) {
+      const label = cat.charAt(0).toUpperCase() + cat.slice(1);
+      // Insert right before "uncategorized" (which is at the end)
+      dynamicCategoryMeta.splice(dynamicCategoryMeta.length - 1, 0, {
+        key: cat,
+        label,
+        cls: "bg-primary/15 text-primary border-primary/40",
+      });
+    }
+  }
 
   const toggleCategory = (c: Category) => {
     const has = state.categories.includes(c);
@@ -131,7 +160,7 @@ export function FilterBar({
         <div className="space-y-2 pt-1 border-t border-border/10">
           {/* Category selection pills bar */}
           <div className="flex flex-wrap gap-1.5">
-            {CATEGORY_META.map((c) => {
+            {dynamicCategoryMeta.map((c) => {
               const active = state.categories.includes(c.key);
               return (
                 <button
@@ -149,20 +178,6 @@ export function FilterBar({
                 </button>
               );
             })}
-
-            <button
-              type="button"
-              onClick={() => onChange({ ...state, randomize: !state.randomize })}
-              className={[
-                "ml-auto inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs-token transition-colors cursor-pointer select-none",
-                state.randomize
-                  ? "border-primary/50 bg-primary/15 text-primary"
-                  : "border-border bg-surface text-text-disabled hover:text-text-secondary hover:bg-surface-elevated",
-              ].join(" ")}
-              aria-pressed={state.randomize}
-            >
-              <Shuffle className="h-3 w-3" /> Random
-            </button>
           </div>
 
           {/* Date Range selectors */}

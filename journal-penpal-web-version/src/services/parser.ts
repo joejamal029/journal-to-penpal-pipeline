@@ -123,6 +123,7 @@ function pushUnit(
   lineNumber: number,
   format: FormatVersion,
   section?: string,
+  endLineNumber?: number,
 ) {
   const trimmed = content.trim();
   if (!trimmed) return;
@@ -150,7 +151,7 @@ function pushUnit(
     } else if (CORE_TAXONOMY.includes(secLower)) {
       category = secLower;
     } else {
-      category = "uncategorized"; // Map to "uncategorized" to preserve filterability in FilterBar UI
+      category = secLower; // Dynamic categories map to the lowercase section header name
     }
   }
 
@@ -175,6 +176,7 @@ function pushUnit(
     tags: tags.length > 0 ? tags : undefined,
     source_file_path: sourceFile,
     source_line_number: lineNumber,
+    source_end_line_number: endLineNumber || lineNumber,
     format_version: format,
     created_at: nowIso(),
     anchor_hash: hashContent(cleanTrimmed, sourceFile, lineNumber),
@@ -195,11 +197,21 @@ export function parseJournal(text: string, sourceFilePath: string): ParseResult 
   let currentSection: string | undefined = "Note";
   let buffer: string[] = [];
   let bufferStartLine = 0;
+  let bufferEndLine = 0;
 
   const flushBuffer = () => {
     if (buffer.length === 0) return;
     const content = buffer.join(" ").replace(/\s+/g, " ").trim();
-    pushUnit(units, currentDate, content, sourceFilePath, bufferStartLine, format, currentSection);
+    pushUnit(
+      units,
+      currentDate,
+      content,
+      sourceFilePath,
+      bufferStartLine,
+      format,
+      currentSection,
+      bufferEndLine,
+    );
     buffer = [];
   };
 
@@ -242,13 +254,23 @@ export function parseJournal(text: string, sourceFilePath: string): ParseResult 
       const b = BULLET_RE.exec(line);
       if (b) {
         flushBuffer();
-        pushUnit(units, currentDate, b[1], sourceFilePath, lineNumber, format, currentSection);
+        pushUnit(
+          units,
+          currentDate,
+          b[1],
+          sourceFilePath,
+          lineNumber,
+          format,
+          currentSection,
+          lineNumber,
+        );
         continue;
       }
       if (!line) flushBuffer();
       else {
         if (buffer.length === 0) bufferStartLine = lineNumber;
         buffer.push(line);
+        bufferEndLine = lineNumber;
       }
     } else if (format === 2) {
       // each non-empty line = one unit
@@ -256,7 +278,16 @@ export function parseJournal(text: string, sourceFilePath: string): ParseResult 
         flushBuffer();
         continue;
       }
-      pushUnit(units, currentDate, line, sourceFilePath, lineNumber, format, currentSection);
+      pushUnit(
+        units,
+        currentDate,
+        line,
+        sourceFilePath,
+        lineNumber,
+        format,
+        currentSection,
+        lineNumber,
+      );
     } else {
       // format 1: blank line separates paragraphs
       if (!line) {
@@ -264,6 +295,7 @@ export function parseJournal(text: string, sourceFilePath: string): ParseResult 
       } else {
         if (buffer.length === 0) bufferStartLine = lineNumber;
         buffer.push(line);
+        bufferEndLine = lineNumber;
       }
     }
   }

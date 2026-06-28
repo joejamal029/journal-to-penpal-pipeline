@@ -14,6 +14,7 @@ import { toast } from "sonner";
 export function SourcesModal() {
   const { modal, closeModal, setCounts, sourceCount, penpalCount } = useAppStore();
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const folderInputRef = useRef<HTMLInputElement | null>(null);
   const [busy, setBusy] = useState(false);
   const [lastReport, setLastReport] = useState<ImportReport[] | null>(null);
   const [dragOver, setDragOver] = useState(false);
@@ -52,6 +53,33 @@ export function SourcesModal() {
     [setCounts, penpalCount],
   );
 
+  // Helper to recursively traverse entries for dragged folders
+  const traverseDirectory = async (entry: FileSystemEntry): Promise<File[]> => {
+    const files: File[] = [];
+    if (entry.isFile) {
+      const file = await new Promise<File>((resolve, reject) => {
+        (entry as FileSystemFileEntry).file(resolve, reject);
+      });
+      files.push(file);
+    } else if (entry.isDirectory) {
+      const dirReader = (entry as FileSystemDirectoryEntry).createReader();
+      const readEntries = (): Promise<FileSystemEntry[]> => {
+        return new Promise((resolve, reject) => {
+          dirReader.readEntries(resolve, reject);
+        });
+      };
+      let entries = await readEntries();
+      while (entries.length > 0) {
+        for (const ent of entries) {
+          const subFiles = await traverseDirectory(ent);
+          files.push(...subFiles);
+        }
+        entries = await readEntries();
+      }
+    }
+    return files;
+  };
+
   if (modal !== "sources") return null;
 
   return (
@@ -81,10 +109,31 @@ export function SourcesModal() {
               setDragOver(true);
             }}
             onDragLeave={() => setDragOver(false)}
-            onDrop={(e) => {
+            onDrop={async (e) => {
               e.preventDefault();
               setDragOver(false);
-              if (e.dataTransfer.files) handleFiles(e.dataTransfer.files);
+              if (e.dataTransfer.items) {
+                const items = e.dataTransfer.items;
+                const filePromises: Promise<File[]>[] = [];
+                for (let i = 0; i < items.length; i++) {
+                  const item = items[i];
+                  if (item.kind === "file") {
+                    const entry = item.webkitGetAsEntry();
+                    if (entry) {
+                      filePromises.push(traverseDirectory(entry));
+                    }
+                  }
+                }
+                try {
+                  const nestedFiles = await Promise.all(filePromises);
+                  const flatFiles = nestedFiles.flat();
+                  handleFiles(flatFiles);
+                } catch {
+                  toast.error("Failed to parse dropped directory structure.");
+                }
+              } else if (e.dataTransfer.files) {
+                handleFiles(e.dataTransfer.files);
+              }
             }}
             className={[
               "rounded-md border-2 border-dashed p-6 text-center transition-colors",
@@ -93,23 +142,44 @@ export function SourcesModal() {
           >
             <FileUp className="mx-auto h-6 w-6 text-text-secondary" />
             <p className="mt-2 text-sm-token text-text-secondary">
-              Drop .md or .txt journal files here
+              Drop .md or .txt journal files or folders here
             </p>
             <p className="text-xs-token text-text-disabled">or</p>
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => inputRef.current?.click()}
-              className="mt-2 inline-flex items-center gap-2 rounded-md bg-primary px-4 py-1.5 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
-            >
-              {busy ? "Importing…" : "Choose files"}
-            </button>
+            <div className="mt-2.5 flex flex-wrap gap-2 justify-center">
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => inputRef.current?.click()}
+                className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-1.5 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50 cursor-pointer"
+              >
+                {busy ? "Importing…" : "Choose files"}
+              </button>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => folderInputRef.current?.click()}
+                className="inline-flex items-center gap-2 rounded-md bg-secondary border border-border px-4 py-1.5 text-sm font-medium text-text-secondary hover:opacity-90 hover:bg-surface-elevated disabled:opacity-50 cursor-pointer"
+              >
+                {busy ? "Importing…" : "Choose folder"}
+              </button>
+            </div>
             <input
               ref={inputRef}
               type="file"
               hidden
               multiple
               accept=".md,.markdown,.txt,text/plain,text/markdown"
+              onChange={(e) => e.target.files && handleFiles(e.target.files)}
+            />
+            <input
+              ref={folderInputRef}
+              type="file"
+              hidden
+              {...({
+                webkitdirectory: "",
+                directory: "",
+              } as Record<string, string>)}
+              multiple
               onChange={(e) => e.target.files && handleFiles(e.target.files)}
             />
           </div>

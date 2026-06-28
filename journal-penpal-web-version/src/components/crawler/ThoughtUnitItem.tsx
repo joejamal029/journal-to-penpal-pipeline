@@ -47,7 +47,11 @@ export function ThoughtUnitItem({
   unit: ThoughtUnit;
   targets: RouteTarget[];
   onRoute: (u: ThoughtUnit, letterId: string) => void;
-  onViewSourceContext?: (sourceFilePath: string, lineNumber: number) => void;
+  onViewSourceContext?: (
+    sourceFilePath: string,
+    lineNumber: number,
+    endLineNumber?: number,
+  ) => void;
   routes?: RouteInfo[];
 }) {
   const [open, setOpen] = useState(false);
@@ -154,14 +158,19 @@ export function ThoughtUnitItem({
         .first();
       if (source && source.raw_text) {
         const lines = source.raw_text.split(/\r?\n/);
-        const targetIdx = unit.source_line_number - 1;
-        const start = Math.max(0, targetIdx - 3);
-        const end = Math.min(lines.length, targetIdx + 4);
-        const fetched = lines.slice(start, end).map((l, idx) => ({
-          lineNum: start + idx + 1,
-          text: l,
-          isTarget: start + idx === targetIdx,
-        }));
+        const startLineNum = unit.source_line_number;
+        const endLineNum = unit.source_end_line_number || startLineNum;
+        const start = Math.max(0, startLineNum - 1 - 3);
+        const end = Math.min(lines.length, endLineNum - 1 + 4);
+        const fetched = lines.slice(start, end).map((l, idx) => {
+          const currentLineNum = start + idx + 1;
+          const isTarget = currentLineNum >= startLineNum && currentLineNum <= endLineNum;
+          return {
+            lineNum: currentLineNum,
+            text: l,
+            isTarget,
+          };
+        });
         setSurroundingLines(fetched);
         setUnfolded(true);
       } else {
@@ -229,10 +238,7 @@ export function ThoughtUnitItem({
         <span className="opacity-40 select-none">·</span>
         <span className="font-mono">{unit.date ?? "Undated"}</span>
         <span className="opacity-40 select-none">·</span>
-        <span
-          className="ml-auto truncate font-mono max-w-[50%]"
-          title={unit.source_file_path}
-        >
+        <span className="ml-auto truncate font-mono max-w-[50%]" title={unit.source_file_path}>
           {unit.source_file_path.split(/[/\\]/).pop()}
         </span>
       </div>
@@ -373,7 +379,13 @@ export function ThoughtUnitItem({
           {onViewSourceContext && (
             <button
               type="button"
-              onClick={() => onViewSourceContext(unit.source_file_path, unit.source_line_number)}
+              onClick={() =>
+                onViewSourceContext(
+                  unit.source_file_path,
+                  unit.source_line_number,
+                  unit.source_end_line_number,
+                )
+              }
               title="View full context in source file"
               className="inline-flex h-6 w-6 items-center justify-center rounded border border-border bg-surface text-text-secondary opacity-0 transition-opacity hover:text-foreground group-hover:opacity-100 cursor-pointer"
             >

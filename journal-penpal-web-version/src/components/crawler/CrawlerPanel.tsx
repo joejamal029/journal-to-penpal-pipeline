@@ -18,6 +18,7 @@ import {
   ArrowRight,
   X,
   Search,
+  Shuffle,
 } from "lucide-react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useAppStore } from "@/stores/appStore";
@@ -66,7 +67,11 @@ function CollectionThoughtItem({
   onRemove: () => void;
   targets: RouteTarget[];
   onRoute: (u: ThoughtUnit, letterId: string) => void;
-  onViewSourceContext?: (sourceFilePath: string, lineNumber: number) => void;
+  onViewSourceContext?: (
+    sourceFilePath: string,
+    lineNumber: number,
+    endLineNumber?: number,
+  ) => void;
   routes?: RouteInfo[];
 }) {
   const [routeOpen, setRouteOpen] = useState(false);
@@ -118,14 +123,19 @@ function CollectionThoughtItem({
         .first();
       if (source && source.raw_text) {
         const lines = source.raw_text.split(/\r?\n/);
-        const targetIdx = item.thought.source_line_number - 1;
-        const start = Math.max(0, targetIdx - 3);
-        const end = Math.min(lines.length, targetIdx + 4);
-        const fetched = lines.slice(start, end).map((l, idx) => ({
-          lineNum: start + idx + 1,
-          text: l,
-          isTarget: start + idx === targetIdx,
-        }));
+        const startLineNum = item.thought.source_line_number;
+        const endLineNum = item.thought.source_end_line_number || startLineNum;
+        const start = Math.max(0, startLineNum - 1 - 3);
+        const end = Math.min(lines.length, endLineNum - 1 + 4);
+        const fetched = lines.slice(start, end).map((l, idx) => {
+          const currentLineNum = start + idx + 1;
+          const isTarget = currentLineNum >= startLineNum && currentLineNum <= endLineNum;
+          return {
+            lineNum: currentLineNum,
+            text: l,
+            isTarget,
+          };
+        });
         setSurroundingLines(fetched);
         setUnfolded(true);
       } else {
@@ -186,7 +196,11 @@ function CollectionThoughtItem({
             <button
               type="button"
               onClick={() =>
-                onViewSourceContext(item.thought.source_file_path, item.thought.source_line_number)
+                onViewSourceContext(
+                  item.thought.source_file_path,
+                  item.thought.source_line_number,
+                  item.thought.source_end_line_number,
+                )
               }
               className="truncate font-mono hover:underline hover:text-primary max-w-[40%] cursor-pointer transition-colors text-left"
               title={`View source context: ${item.thought.source_file_path}`}
@@ -303,7 +317,11 @@ function CollectionThoughtItem({
             <button
               type="button"
               onClick={() =>
-                onViewSourceContext(item.thought.source_file_path, item.thought.source_line_number)
+                onViewSourceContext(
+                  item.thought.source_file_path,
+                  item.thought.source_line_number,
+                  item.thought.source_end_line_number,
+                )
               }
               title="View full context in source file"
               className="inline-flex h-6 w-6 items-center justify-center rounded border border-border bg-surface text-text-secondary hover:text-foreground hover:bg-surface-elevated transition-colors cursor-pointer"
@@ -423,7 +441,11 @@ function CollectionThoughtItem({
 // --- ROUTE OVERVIEW REGISTER VIEW ---
 interface RoutesDirectoryViewProps {
   routedMap: Map<string, RouteInfo[]>;
-  onViewSourceContext?: (sourceFilePath: string, lineNumber: number) => void;
+  onViewSourceContext?: (
+    sourceFilePath: string,
+    lineNumber: number,
+    endLineNumber?: number,
+  ) => void;
 }
 
 function RoutesDirectoryView({ routedMap, onViewSourceContext }: RoutesDirectoryViewProps) {
@@ -541,7 +563,13 @@ function RoutesDirectoryView({ routedMap, onViewSourceContext }: RoutesDirectory
                       <span className="opacity-40 select-none">·</span>
                       <button
                         type="button"
-                        onClick={() => onViewSourceContext(u.source_file_path, u.source_line_number)}
+                        onClick={() =>
+                          onViewSourceContext(
+                            u.source_file_path,
+                            u.source_line_number,
+                            u.source_end_line_number,
+                          )
+                        }
                         className="truncate font-mono hover:underline hover:text-primary max-w-[40%] cursor-pointer transition-colors text-left"
                         title={`View source context: ${u.source_file_path}`}
                       >
@@ -633,6 +661,7 @@ export function CrawlerPanel() {
   const [selectedSourceId, setSelectedSourceId] = useState<string | null>(null);
   const [selectedCollectionId, setSelectedCollectionId] = useState<string | null>(null);
   const [highlightedLineNumber, setHighlightedLineNumber] = useState<number | null>(null);
+  const [highlightedEndLineNumber, setHighlightedEndLineNumber] = useState<number | null>(null);
 
   // Curation collections states
   const [newCollectionTitle, setNewCollectionTitle] = useState("");
@@ -734,7 +763,14 @@ export function CrawlerPanel() {
       for (let i = 0; i < Math.min(highlightedLineNumber - 1, lines.length); i++) {
         startOffset += lines[i].length + 1; // +1 for newline character
       }
-      const endOffset = startOffset + (lines[highlightedLineNumber - 1]?.length ?? 0);
+      const endLine = highlightedEndLineNumber ?? highlightedLineNumber;
+      let endOffset = startOffset;
+      for (let i = highlightedLineNumber - 1; i < Math.min(endLine, lines.length); i++) {
+        endOffset += lines[i].length;
+        if (i < endLine - 1) {
+          endOffset += 1; // +1 for newline character
+        }
+      }
 
       // Focus and highlight range
       textareaRef.current.focus();
@@ -742,21 +778,27 @@ export function CrawlerPanel() {
 
       // Scroll selection to view
       const lineCount = lines.length;
-      const linePercentage = highlightedLineNumber / lineCount;
+      const midLine = (highlightedLineNumber + endLine) / 2;
+      const linePercentage = midLine / lineCount;
       const scrollHeight = textareaRef.current.scrollHeight;
       const textareaHeight = textareaRef.current.clientHeight;
       textareaRef.current.scrollTop = scrollHeight * linePercentage - textareaHeight / 2;
 
       setHighlightedLineNumber(null);
+      setHighlightedEndLineNumber(null);
     }
-  }, [highlightedLineNumber, activeSource, selectedSourceId]);
+  }, [highlightedLineNumber, highlightedEndLineNumber, activeSource, selectedSourceId]);
 
   // Global Event Listener for view-source-context clicks (e.g. from editor custom blocks)
   useEffect(() => {
     const handleGlobalViewSource = (e: Event) => {
       const detail = (e as CustomEvent).detail;
       if (detail?.sourceFilePath) {
-        handleViewSourceContext(detail.sourceFilePath, detail.lineNumber || 1);
+        handleViewSourceContext(
+          detail.sourceFilePath,
+          detail.lineNumber || 1,
+          detail.endLineNumber,
+        );
       }
     };
     window.addEventListener("view-source-context", handleGlobalViewSource);
@@ -766,11 +808,16 @@ export function CrawlerPanel() {
   }, []);
 
   // Context view anchor
-  const handleViewSourceContext = async (sourceFilePath: string, lineNumber: number) => {
+  const handleViewSourceContext = async (
+    sourceFilePath: string,
+    lineNumber: number,
+    endLineNumber?: number,
+  ) => {
     const src = await db().journal_sources.where("file_path").equals(sourceFilePath).first();
     if (src) {
       setSelectedSourceId(src.id);
       setHighlightedLineNumber(lineNumber);
+      setHighlightedEndLineNumber(endLineNumber ?? lineNumber);
       setActiveTab("sources");
     } else {
       toast.error("Source file context could not be found.");
@@ -972,13 +1019,29 @@ export function CrawlerPanel() {
         <h2 className="text-lg-token font-medium text-foreground flex items-center gap-1.5">
           <BookOpen className="h-4 w-4 text-primary" /> Journal Crawler
         </h2>
-        <button
-          aria-label="Manage sources"
-          onClick={() => openModal("sources")}
-          className="rounded p-1 text-text-secondary hover:bg-surface-elevated hover:text-foreground cursor-pointer transition-colors"
-        >
-          <FileUp className="h-4 w-4" />
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            aria-label="Toggle randomize"
+            title="Toggle randomize"
+            onClick={() =>
+              setCrawlerFilters({ ...crawlerFilters, randomize: !crawlerFilters.randomize })
+            }
+            className={`rounded p-1 cursor-pointer transition-colors ${
+              filters.randomize
+                ? "text-primary bg-primary/10 hover:bg-primary/20"
+                : "text-text-secondary hover:bg-surface-elevated hover:text-foreground"
+            }`}
+          >
+            <Shuffle className="h-4 w-4" />
+          </button>
+          <button
+            aria-label="Manage sources"
+            onClick={() => openModal("sources")}
+            className="rounded p-1 text-text-secondary hover:bg-surface-elevated hover:text-foreground cursor-pointer transition-colors"
+          >
+            <FileUp className="h-4 w-4" />
+          </button>
+        </div>
       </header>
 
       {sourceCount === 0 ? (
@@ -1020,7 +1083,9 @@ export function CrawlerPanel() {
               }`}
             >
               sources
-              <span className="ml-1 text-[9px] font-semibold text-amber-500 drop-shadow-sm">{sources?.length ?? 0}</span>
+              <span className="ml-1 text-[9px] font-semibold text-amber-500 drop-shadow-sm">
+                {sources?.length ?? 0}
+              </span>
             </button>
             <button
               onClick={() => setActiveTab("collections")}
@@ -1031,7 +1096,9 @@ export function CrawlerPanel() {
               }`}
             >
               lists
-              <span className="ml-1 text-[9px] font-semibold text-amber-500 drop-shadow-sm">{collectionsList?.length ?? 0}</span>
+              <span className="ml-1 text-[9px] font-semibold text-amber-500 drop-shadow-sm">
+                {collectionsList?.length ?? 0}
+              </span>
             </button>
             <button
               onClick={() => setActiveTab("routes")}
@@ -1042,7 +1109,9 @@ export function CrawlerPanel() {
               }`}
             >
               routes
-              <span className="ml-1 text-[9px] font-semibold text-amber-500 drop-shadow-sm">{routedThoughtsMap.size}</span>
+              <span className="ml-1 text-[9px] font-semibold text-amber-500 drop-shadow-sm">
+                {routedThoughtsMap.size}
+              </span>
             </button>
           </div>
 

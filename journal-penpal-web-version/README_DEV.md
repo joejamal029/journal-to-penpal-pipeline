@@ -79,7 +79,6 @@ We resolve this loop by introducing a targeted `source` tag parameter inside the
    });
    ```
 
-
 ---
 
 ## 🧩 Custom BlockNote Dragging Hack
@@ -154,6 +153,7 @@ import "fake-indexeddb/auto";
 ```
 
 This injects an in-memory, fully transaction-compliant mock IndexedDB engine. Integration tests inside `src/services/db.test.ts` and `src/services/routing.test.ts` verify:
+
 - Table creations and Version 4 Dexie schema initializations.
 - Relational profile CRUD operations.
 - Dynamic parsing, transactional cascading deletes, and unique compound key constraints (`[collection_id+thought_unit_id]`).

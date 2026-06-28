@@ -76,17 +76,17 @@ export function StatusBar() {
             try {
               const { db } = await import("@/services/db");
               const { emitDbChange } = await import("@/hooks/useLiveQuery");
-              
+
               const tables = db().tables;
               const tableNames = tables.map((t) => t.name);
-              
+
               // Wipe all IndexedDB tables
               await db().transaction("rw", tableNames, async () => {
                 for (const t of tables) {
                   await t.clear();
                 }
               });
-              
+
               // Clear Zustand persisted store and all localStorage
               localStorage.clear();
               emitDbChange();
